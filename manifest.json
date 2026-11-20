@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "微信小程序版本助手",
+  "version": "1.5.0",
+  "description": "可配置工作区，扫描本地小程序项目并通过 CLI 上传开发版；网页端设为体验版；一键或持续自动提交审核",
+  "action": { "default_popup": "popup.html" },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "optional_host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://mp.weixin.qq.com/*"],
+      "js": ["page-core.js", "content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

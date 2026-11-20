@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>微信小程序版本助手</title>
+<style>
+  body { width: 300px; margin: 14px; font: 14px/1.5 system-ui, -apple-system, "PingFang SC", sans-serif; color: #1f2329; }
+  label, input, select, textarea { display: block; box-sizing: border-box; width: 100%; }
+  label { margin: 10px 0 4px; }
+  input, select, textarea { padding: 7px 8px; border: 1px solid #d9dde3; border-radius: 6px; font: inherit; }
+  textarea { resize: vertical; }
+  .hint { margin: 4px 0 0; color: #86909c; font-size: 12px; line-height: 1.5; }
+  button { width: 100%; padding: 8px 10px; margin: 6px 0; border: 1px solid #d9dde3; border-radius: 6px; background: #fff; color: #1f2329; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { padding: 11px 10px; margin: 10px 0 6px; border: none; background: #07c160; color: #fff; font-size: 14px; font-weight: 600; }
+  button.primary:disabled { background: #07c160; }
+  button.stop { border-color: #f53f3f; color: #f53f3f; }
+  #status { min-height: 34px; margin: 12px 0 0; padding: 8px 10px; border-radius: 6px; background: #f5f7fa; color: #4e5969; font-size: 12.5px; line-height: 1.5; }
+  #config-status { white-space: pre-line; }
+  .card { margin: 14px 0 0; padding: 10px 12px 12px; border: 1px solid #e5e6eb; border-radius: 8px; background: #fafbfc; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .card-title { font-size: 13px; font-weight: 600; }
+  button.mini { width: auto; margin: 0; padding: 4px 10px; font-size: 12px; color: #07c160; border-color: #07c160; }
+  .card-info { margin: 6px 0 0; color: #4e5969; font-size: 12px; line-height: 1.5; }
+  #upload-list { max-height: 210px; overflow-y: auto; margin: 6px 0 0; }
+  #upload-list label { display: flex; align-items: flex-start; gap: 6px; margin: 5px 0; font-size: 12px; line-height: 1.4; cursor: pointer; }
+  #upload-list input { width: auto; flex: none; margin: 2px 0 0; }
+  #upload-list label:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+  #upload-list .appid { display: block; color: #86909c; font-size: 11px; }
+  #upload-list .issue { color: #cb2634; }
+  .check-row { display: flex; gap: 12px; margin: 8px 0 0; }
+  .check-row label { display: flex; align-items: center; gap: 5px; margin: 0; font-size: 12px; color: #4e5969; }
+  .check-row input { width: auto; margin: 0; }
+  #upload-start { margin: 8px 0 0; border-color: #07c160; color: #07c160; font-weight: 600; }
+  #upload-log { max-height: 120px; overflow: auto; margin: 8px 0 0; padding: 8px; border-radius: 6px; background: #1f2329; color: #d6deeb; font: 11px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
+  details { margin-top: 12px; border-top: 1px solid #e5e6eb; padding-top: 8px; }
+  summary { padding: 4px 0; color: #4e5969; font-size: 13px; cursor: pointer; user-select: none; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  .arrow { display: inline-block; transition: transform .15s; }
+  details[open] .arrow { transform: rotate(180deg); }
+  .group-title { margin: 12px 0 2px; color: #86909c; font-size: 12px; }
+  a { display: inline-block; margin: 8px 0 2px; color: #07c160; font-size: 13px; }
+</style>
+<section id="audit-main">
+  <label for="audit-description">版本描述</label>
+  <textarea id="audit-description" maxlength="200" rows="2" placeholder="提审时自动填写；留空沿用网页已有值"></textarea>
+  <p class="hint">留空且网页也没填时会停止，不会提交空描述。</p>
+  <button id="audit-auto-batch" class="primary">持续自动提审 · 切页面自动继续</button>
+  <button id="audit-auto-stop" class="stop" disabled>停止自动提审</button>
+  <p id="status" role="status">请先登录并打开目标小程序的公众平台首页。</p>
+  <p class="hint">开启后，当前及之后切换到的每个公众平台页面都会自动提审，直到点「停止自动提审」。</p>
+</section>
+
+<section id="upload-card" class="card">
+  <div class="card-head">
+    <span class="card-title">本地上传 · CLI</span>
+    <button id="upload-refresh" class="mini">刷新识别</button>
+  </div>
+  <p id="upload-info" class="card-info" role="status">点「刷新识别」扫描本地小程序项目（首次需设置项目根目录）。</p>
+  <div id="upload-list"></div>
+  <div class="check-row">
+    <label><input type="checkbox" id="upload-build-npm"> 先构建 npm</label>
+    <label><input type="checkbox" id="upload-dry-run"> 仅预演</label>
+  </div>
+  <label for="upload-version">版本号（留空自动生成）</label>
+  <input id="upload-version" placeholder="例如 261120.0130">
+  <label for="upload-desc">版本说明（必填）</label>
+  <input id="upload-desc" maxlength="200" placeholder="本次更新内容" value="更新">
+  <p class="hint">已默认填「更新」，可直接修改，不用手动输入。</p>
+  <button id="upload-start" disabled>上传选中的项目（CLI）</button>
+  <pre id="upload-log" hidden></pre>
+  <p class="hint">上传的是开发版，不会提交审核或发布。需先启动本机服务（macOS 双击 start-upload-server.command，Windows 双击 start-upload-server.bat）。</p>
+  <a href="#" id="upload-open-panel">打开完整上传面板（首次设置 / 环境自检 / 完整日志）</a>
+</section>
+
+<details id="more">
+  <summary><span class="arrow">▾</span> 其他操作（网页设为体验版 / 提审 / 单步 / 定位 / 设置）</summary>
+
+  <div class="group-title">本机服务设置 · 首次使用</div>
+  <label for="upload-base">服务地址</label>
+  <input id="upload-base" placeholder="http://127.0.0.1:17823">
+  <label for="config-root">项目根目录（保存一次，以后自动沿用）</label>
+  <input id="config-root" placeholder="/绝对路径/工作区，可用 ~ 开头">
+  <button id="config-pick">选择目录…并保存</button>
+  <label for="config-cli">CLI 路径（留空＝自动检测）</label>
+  <input id="config-cli" placeholder="留空自动检测">
+  <label for="config-host">上传前必须还原的接口地址（可选，留空＝不校验）</label>
+  <input id="config-host" placeholder="例如 https://api.example.com">
+  <button id="config-save">保存设置</button>
+  <p class="hint" id="config-status" role="status">未读取到本机服务配置。请先启动服务，或直接打开完整上传面板。</p>
+  <p class="hint">找不到 CLI？它随「微信开发者工具」安装（macOS 在 <code>/Applications/wechatwebdevtools.app/Contents/MacOS/cli</code>，Windows 为安装目录下的 <code>cli.bat</code>）；需在开发者工具「设置 → 安全设置」开启服务端口并扫码登录。详见 README。</p>
+
+  <section id="trial-card" class="card">
+    <div class="card-head">
+      <span class="card-title">网页端设为体验版</span>
+      <button id="trial-refresh" class="mini">刷新识别</button>
+    </div>
+    <div id="trial-info" class="card-info" role="status">点「刷新识别」读取当前页面的小程序和开发版本。</div>
+    <div id="trial-list"></div>
+    <button id="trial-upload" disabled>设为体验版</button>
+    <p class="hint">在公众平台把开发版指定为体验版（通常只需设置一次），会覆盖当前体验版。</p>
+  </section>
+
+  <div class="group-title">自动提审</div>
+  <button id="audit-auto">一键自动提交审核</button>
+  <button id="audit-force">强制继续当前步骤</button>
+  <div class="group-title">单步手动</div>
+  <label for="version">版本号（可留空＝唯一可选开发版本）</label>
+  <input id="version" placeholder="例如 261119.1430">
+  <label for="action">要找的操作</label>
+  <select id="action">
+    <option value="trial">设为体验版</option>
+    <option value="audit">提交审核</option>
+  </select>
+  <button id="auto">自动设为体验版</button>
+  <button id="audit">打开提交审核</button>
+  <button id="audit-next">识别并继续当前提审步骤</button>
+  <button id="audit-fill">填写空白版本描述</button>
+  <div class="group-title">定位与入口</div>
+  <button id="locate">定位按钮</button>
+  <button id="open-action" disabled>点击已定位的入口</button>
+  <a href="https://mp.weixin.qq.com/" target="_blank" rel="noopener">打开微信公众平台</a>
+</details>
+
+<script src="page-core.js"></script>
+<script src="popup.js"></script>
+</html>

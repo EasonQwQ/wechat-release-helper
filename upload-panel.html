@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>微信小程序上传台</title>
+<style>
+  :root { color-scheme: light; }
+  body { max-width: 860px; margin: 24px auto; padding: 0 18px; font: 14px/1.6 system-ui, -apple-system, "PingFang SC", sans-serif; color: #1f2329; }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  .sub { margin: 0 0 18px; color: #86909c; font-size: 13px; }
+  .panel { padding: 14px 16px; border: 1px solid #e5e6eb; border-radius: 10px; background: #fff; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  label { display: block; margin: 10px 0 4px; color: #4e5969; font-size: 13px; }
+  input[type=text] { box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #d9dde3; border-radius: 6px; font: inherit; }
+  .two { display: grid; grid-template-columns: 220px 1fr; gap: 12px; }
+  button { padding: 8px 14px; border: 1px solid #d9dde3; border-radius: 6px; background: #fff; color: #1f2329; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { border: none; background: #07c160; color: #fff; font-weight: 600; }
+  button.danger { border-color: #f53f3f; color: #f53f3f; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
+  .card { padding: 10px 12px; border: 1px solid #e5e6eb; border-radius: 8px; background: #fafbfc; cursor: pointer; }
+  .card:has(input:checked) { border-color: #07c160; background: #f0fbf5; }
+  .card:has(input:disabled) { opacity: .6; cursor: not-allowed; }
+  .card .head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .card .head input { width: auto; margin: 0; }
+  .card .meta { margin-top: 4px; color: #86909c; font-size: 12px; word-break: break-all; }
+  .card .tag { display: inline-block; margin: 4px 4px 0 0; padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+  .tag.warn { background: #fff3e8; color: #d25f00; }
+  .tag.block { background: #ffece8; color: #cb2634; }
+  .tag.ok { background: #e8ffea; color: #009a29; }
+  pre { max-height: 320px; overflow: auto; margin: 10px 0 0; padding: 12px; border-radius: 8px; background: #1f2329; color: #d6deeb; font: 12px/1.55 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
+  #status { min-height: 22px; margin-top: 10px; color: #4e5969; font-size: 13px; }
+  .hint { color: #86909c; font-size: 12px; }
+  .hint.ok { color: #009a29; }
+  .hint.bad { color: #cb2634; }
+  details summary { cursor: pointer; color: #4e5969; font-size: 13px; }
+  #env-status { margin-top: 8px; white-space: pre-line; }
+  code { padding: 1px 5px; border-radius: 4px; background: #f2f3f5; }
+</style>
+<h1>微信小程序上传台</h1>
+<p class="sub">① 设置工作区 → ② 环境自检 → ③ 勾选项目上传。配置只需设置一次，本机服务会记住。</p>
+
+<div class="panel">
+  <div class="row" style="justify-content:space-between">
+    <strong>① 环境设置（首次使用）</strong>
+    <button id="doctor">一键自检</button>
+  </div>
+  <label for="cfg-root">项目根目录：包含小程序项目的文件夹（也可直接填单个小程序项目本身）</label>
+  <div class="row">
+    <input id="cfg-root" type="text" placeholder="/绝对路径/工作区，可用 ~ 开头" style="flex:1;min-width:260px">
+    <button id="pick-root">选择目录…</button>
+    <button id="save-config" class="primary">保存设置</button>
+  </div>
+  <div class="two" style="margin-top:4px">
+    <div><label for="cfg-cli">CLI 路径（留空＝自动检测）</label><input id="cfg-cli" type="text" placeholder="留空自动检测"></div>
+    <div><label for="cfg-host">上传前必须还原的接口地址（可选）</label><input id="cfg-host" type="text" placeholder="留空＝不校验"></div>
+  </div>
+  <div id="env-status" role="status" class="hint">正在读取本机配置…</div>
+  <pre id="doctor-log" hidden></pre>
+  <details style="margin-top:8px">
+    <summary>找不到 CLI？安装与检测指引</summary>
+    <pre id="cli-guide" style="max-height:200px"></pre>
+    <p class="hint">下载地址：<a id="cli-download" href="#" target="_blank" rel="noopener"></a>　（此为第三方工具，非微信官方发布。）</p>
+  </details>
+</div>
+
+<div class="panel">
+  <div class="row" style="margin-bottom:6px"><strong>② 识别项目</strong></div>
+  <div class="row">
+    <button id="refresh">刷新识别</button>
+    <button id="login">检查开发者工具登录</button>
+    <span id="env" class="hint">正在读取…</span>
+  </div>
+  <div id="cards" class="cards"></div>
+</div>
+
+<div class="panel">
+  <div class="row" style="margin-bottom:6px"><strong>③ 填写版本并上传</strong></div>
+  <div class="two">
+    <div><label for="version">版本号（留空自动生成）</label><input id="version" type="text" placeholder="例如 261120.0130"></div>
+    <div><label for="desc">版本说明（必填）</label><input id="desc" type="text" maxlength="200" placeholder="本次更新内容" value="更新"></div>
+  </div>
+  <p class="hint" style="margin:6px 0 0">版本说明已默认填「更新」，可直接修改，不用手动输入。</p>
+  <div class="row" style="margin-top:12px">
+    <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="buildNpm"> 上传前构建 npm</label>
+    <label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="dryRun"> 仅预演（不真上传）</label>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button id="upload" class="primary" disabled>上传选中的项目（CLI）</button>
+    <button id="stop" class="danger" disabled>停止</button>
+  </div>
+  <div id="status" role="status">先在上方点「刷新识别」，勾选项目即可上传（版本说明已预填「更新」）。</div>
+  <pre id="log" hidden></pre>
+</div>
+
+<p class="hint">CLI 上传的是<strong>开发版</strong>。若公众平台已把该上传身份指定为体验版，新版本会自动成为体验版；首次使用需在公众平台点一次「设为体验版」。此工具不会提交审核、不会发布正式版。</p>
+
+<script>
+const $ = id => document.getElementById(id);
+const statusEl = $('status'), logEl = $('log');
+let cursor = 0, polling = null;
+
+function line(text) { logEl.hidden = false; logEl.textContent += text + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+function setStatus(text) { statusEl.textContent = text; }
+
+async function api(pathname, options) {
+  const response = await fetch(pathname, {
+    method: options?.method || 'GET',
+    headers: options?.body ? { 'Content-Type': 'application/json' } : undefined,
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
+}
+
+async function refresh() {
+  $('refresh').disabled = true;
+  try {
+    const data = await api('/api/projects');
+    $('env').textContent = `${data.root} · CLI ${data.cliExists ? '已找到' : '未找到'} · 共 ${data.projects.length} 个项目`;
+    const cards = $('cards');
+    cards.replaceChildren();
+    for (const p of data.projects) {
+      const box = document.createElement('label');
+      box.className = 'card';
+      const head = document.createElement('div');
+      head.className = 'head';
+      const check = document.createElement('input');
+      check.type = 'checkbox'; check.value = p.id; check.disabled = !p.ready;
+      head.append(check, document.createTextNode(p.label));
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `${p.id} · ${p.appid}`;
+      box.append(head, meta);
+      const last = document.createElement('div');
+      last.className = 'meta';
+      last.textContent = p.lastUpload
+        ? `上次上传：${p.lastUpload.version}（${new Date(p.lastUpload.at).toLocaleString('zh-CN')}${p.lastUpload.sizeKB ? `，${p.lastUpload.sizeKB} KB` : ''}）`
+        : '暂无上传记录';
+      box.append(last);
+      for (const text of p.blockers) box.append(tag(text, 'block'));
+      for (const text of p.warnings) box.append(tag(text, 'warn'));
+      if (p.ready && !p.blockers.length) box.append(tag('可上传', 'ok'));
+      cards.append(box);
+    }
+    syncUpload();
+    setStatus(data.needsSetup
+      ? '还没识别到可上传的小程序：请在上方「① 环境设置」选择项目根目录，或点「一键自检」。'
+      : `识别到 ${data.projects.length} 个项目，勾选后点上传。`);
+  } catch (error) {
+    setStatus(`识别失败：${error.message}`);
+  } finally { $('refresh').disabled = false; }
+}
+function tag(text, kind) {
+  const el = document.createElement('span');
+  el.className = `tag ${kind}`; el.textContent = text; return el;
+}
+function selected() { return [...document.querySelectorAll('#cards input:checked')].map(el => el.value); }
+function syncUpload() { $('upload').disabled = !selected().length || !$('desc').value.trim(); }
+
+$('refresh').addEventListener('click', refresh);
+$('desc').addEventListener('input', syncUpload);
+$('cards').addEventListener('change', syncUpload);
+
+$('login').addEventListener('click', async () => {
+  setStatus('正在检查开发者工具登录状态…');
+  try {
+    const data = await api('/api/islogin', { method: 'POST' });
+    setStatus(data.loggedIn ? '开发者工具已登录，可以上传。'
+      : `未登录或 CLI 未就绪：${data.output || data.error || '请打开微信开发者工具并扫码登录'}${data.ok ? '' : '\n' + data.installGuide}`);
+  } catch (error) { setStatus(`检查失败：${error.message}`); }
+});
+
+async function loadConfig() {
+  try {
+    const cfg = await api('/api/config');
+    $('cfg-root').value = cfg.root || '';
+    $('cfg-cli').value = cfg.cliPath || '';
+    $('cfg-host').value = cfg.expectedHost || '';
+    $('cli-guide').textContent = cfg.installGuide || '';
+    $('cli-download').textContent = cfg.installUrl || '';
+    $('cli-download').href = cfg.installUrl || '#';
+    $('env-status').textContent = `配置文件：${cfg.configFile}\n`
+      + `工作模式：${cfg.mode === 'batch' ? '根目录批量脚本' : '直接调用 CLI'} · 识别 ${cfg.projectCount} 个项目 · `
+      + `CLI ${cfg.cliExists ? '已找到' : '未找到'}${cfg.cliSource === 'auto' ? '（自动检测）' : ''}`;
+    $('env-status').className = cfg.cliExists && !cfg.needsSetup ? 'hint ok' : 'hint bad';
+  } catch (error) {
+    $('env-status').textContent = `读取配置失败：${error.message}`;
+    $('env-status').className = 'hint bad';
+  }
+}
+
+async function saveConfig(body) {
+  try {
+    const cfg = await api('/api/config', { method: 'POST', body });
+    await loadConfig();
+    setStatus(`设置已保存（写在 ${cfg.configFile}，下次启动自动沿用），正在重新识别项目…`);
+    await refresh();
+  } catch (error) { setStatus(`保存失败：${error.message}`); }
+}
+
+$('save-config').addEventListener('click', () => saveConfig({
+  root: $('cfg-root').value.trim(),
+  cliPath: $('cfg-cli').value.trim(),
+  expectedHost: $('cfg-host').value.trim(),
+}));
+
+$('pick-root').addEventListener('click', async () => {
+  setStatus('正在打开系统目录选择框…');
+  try {
+    const result = await api('/api/pick-root', { method: 'POST' });
+    if (result.path) {
+      $('cfg-root').value = result.path;
+      await saveConfig({ root: result.path });
+    } else if (result.cancelled) {
+      setStatus('已取消选择。');
+    } else {
+      setStatus('无法打开目录选择框，请把绝对路径粘贴到「项目根目录」再点「保存设置」。');
+    }
+  } catch (error) { setStatus(`选择失败：${error.message}`); }
+});
+
+$('doctor').addEventListener('click', async () => {
+  $('doctor').disabled = true;
+  setStatus('正在自检（会调用一次 cli islogin）…');
+  try {
+    const data = await api('/api/doctor');
+    $('doctor-log').hidden = false;
+    $('doctor-log').textContent = data.checks.map(item =>
+      `${item.ok ? '✅' : '❌'} ${item.message}${item.fix ? `\n   → ${item.fix.replace(/\n/g, '\n   ')}` : ''}`).join('\n');
+    setStatus(data.ok ? '自检全部通过，可以勾选项目上传了。' : '自检有未通过项，请按下方日志的提示处理。');
+  } catch (error) { setStatus(`自检失败：${error.message}`); }
+  finally { $('doctor').disabled = false; }
+});
+
+async function poll(jobId) {
+  clearTimeout(polling);
+  try {
+    const data = await api(`/api/job?cursor=${cursor}`);
+    for (const text of data.logs) line(text);
+    cursor = data.next;
+    if (data.active) {
+      setStatus('上传进行中，请勿关闭服务…');
+      polling = setTimeout(() => poll(jobId), 600);
+    } else {
+      $('upload').disabled = false; $('stop').disabled = true;
+      const summary = data.results.map(r => `${r.name}: ${r.status}`).join('；');
+      setStatus(data.status === 'done'
+        ? `完成。${summary}${data.dryRun ? '（预演，未真上传）' : '，请到公众平台核对开发版版本号。'}`
+        : `${data.status === 'stopped' ? '已停止' : '失败'}：${data.error || summary || '请查看日志'}`);
+    }
+  } catch (error) {
+    setStatus(`读取日志失败：${error.message}`);
+    $('upload').disabled = false; $('stop').disabled = true;
+  }
+}
+
+$('upload').addEventListener('click', async () => {
+  const names = selected();
+  if (!names.length) return setStatus('请先勾选项目。');
+  const desc = $('desc').value.trim();
+  if (!desc) return setStatus('请填写版本说明。');
+  if (!window.confirm(`即将通过 CLI 上传 ${names.length} 个项目：\n${names.join('、')}\n\n版本 ${$('version').value.trim() || '自动生成'}\n说明 ${desc}\n\n确认继续？`)) return;
+  $('upload').disabled = true; $('stop').disabled = false;
+  logEl.textContent = ''; logEl.hidden = false; cursor = 0;
+  setStatus('正在启动上传任务…');
+  try {
+    const data = await api('/api/upload', {
+      method: 'POST',
+      body: { names, version: $('version').value.trim(), desc, buildNpm: $('buildNpm').checked, dryRun: $('dryRun').checked },
+    });
+    line(`任务 ${data.jobId} 已创建`);
+    poll(data.jobId);
+  } catch (error) {
+    setStatus(`启动失败：${error.message}`);
+    $('upload').disabled = false; $('stop').disabled = true;
+  }
+});
+
+$('stop').addEventListener('click', async () => {
+  try { await api('/api/stop', { method: 'POST' }); setStatus('已发送停止指令。'); }
+  catch (error) { setStatus(`停止失败：${error.message}`); }
+});
+
+loadConfig();
+refresh();
+(async () => {
+  try {
+    const data = await api('/api/job');
+    if (data.active) {
+      $('upload').disabled = true; $('stop').disabled = false;
+      cursor = 0; logEl.hidden = false; line(`恢复到进行中的任务 ${data.id}`);
+      poll(data.id);
+    }
+  } catch (error) { /* 忽略 */ }
+})();
+</script>
+</html>
