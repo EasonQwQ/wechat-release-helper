@@ -217,7 +217,9 @@ async function main() {
   });
   assert.equal(nullOrigin.status, 403, 'Origin: null 的写操作应被拒绝');
   const extOrigin = await api(PORT, '/api/projects', { headers: { Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop' } });
-  assert.equal(extOrigin.status, 200, '扩展来源应被允许');
+  assert.equal(extOrigin.status, 403, '未配置的扩展来源应被拒绝');
+  const opaqueRead = await api(PORT, '/api/config', { headers: { Origin: 'null' } });
+  assert.equal(opaqueRead.status, 403, '不透明来源不得读取配置');
   console.log('用例 6 通过：Host / Origin 来源校验');
 
   // 7) 可选：真实工作区只读扫描。别人 clone 后没有小程序项目时自动跳过。

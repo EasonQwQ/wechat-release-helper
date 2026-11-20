@@ -310,3 +310,7 @@ node tests/chrome-e2e.cjs                       # 真实 Chrome 提审演练
 [MIT](LICENSE) · 欢迎 issue / PR，也欢迎 ⭐ Star。
 
 **免责声明**：本工具是第三方自动化辅助，与腾讯 / 微信官方无关；使用前请自行确认符合微信公众平台规则，并对自己的上传、提审与发布操作负责。
+
+## 本机服务访问控制
+
+默认只允许本机面板访问，拒绝任意扩展和 `Origin: null`。使用 Chrome 扩展前，在 `chrome://extensions` 查看本扩展 ID，并在启动服务时设置 `WRH_EXTENSION_IDS=<扩展ID>`（多个 ID 用逗号分隔）。macOS/Linux 示例：`WRH_EXTENSION_IDS=你的扩展ID node upload-server.cjs`。Windows PowerShell：`$env:WRH_EXTENSION_IDS="你的扩展ID"; node upload-server.cjs`。请仅添加你信任的本扩展 ID，修改后重启服务。

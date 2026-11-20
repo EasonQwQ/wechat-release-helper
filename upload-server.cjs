@@ -505,8 +505,12 @@ function stopJob() {
 
 // ---------- HTTP ----------
 function allowedOrigin(origin) {
-  if (!origin || origin === 'null') return true; // curl / 本地 file:// / 无 Origin
-  if (origin.startsWith('chrome-extension://')) return true;
+  if (origin === 'null') return false;
+  if (!origin) return true; // curl / 本地 file:// / 无 Origin
+  if (origin.startsWith('chrome-extension://')) {
+    const ids = (process.env.WRH_EXTENSION_IDS || '').split(',').map(id => id.trim()).filter(id => /^[a-p]{32}$/.test(id));
+    return ids.some(id => origin === `chrome-extension://${id}`);
+  }
   return [`http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`].includes(origin);
 }
 
